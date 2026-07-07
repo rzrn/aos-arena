@@ -159,7 +159,10 @@ def apply_script(protocol, connection, config):
                 self.weapon_object.discard_reloading = ds.get("arena_discard_reloading", False)
 
                 if local is False and self.world_object is not None:
-                    change_weapon = loaders.ChangeWeapon()
+                    change_weapon           = loaders.ChangeWeapon()
+                    change_weapon.player_id = self.player_id
+                    change_weapon.weapon    = weapon
+
                     self.protocol.broadcast_contained(change_weapon, save = True)
 
                     if not no_kill: self.kill(kill_type = CLASS_CHANGE_KILL)
