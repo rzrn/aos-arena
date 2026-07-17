@@ -1,4 +1,4 @@
-# Copyright © 2025 rzrn
+# Copyright © 2025–2026 rzrn
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -17,6 +17,42 @@ from random import uniform
 
 from piqueserver.commands import command, player_only, get_player
 
+@command('hardhandicap', 'hhic')
+def c_hardhandicap(connection, nickname, argval = None):
+    """
+    Give a hard handicap or show its level of a given player
+    /hardhandicap <player> [level] or /hhic
+    """
+    protocol = connection.protocol
+
+    player = get_player(protocol, nickname)
+
+    if argval is None:
+        return "{} % hard handicap is applied to {}".format(player.base_miss_probability, player.name)
+    elif connection.admin or c_hardhandicap.command_name in connection.rights:
+        prob = int(argval)
+
+        if prob < 0 or 100 < prob:
+            return "Handicap level should be between 0 and 100 %"
+        else:
+            player.miss_probability = max(player.miss_probability, prob)
+            player.base_miss_probability = prob
+
+            if prob <= 0:
+                protocol.broadcast_chat(
+                    "Hard handicap for {} has been removed by {}".format(
+                        player.name, connection.name
+                    )
+                )
+            else:
+                protocol.broadcast_chat(
+                    "{} % hard handicap has been applied to {} by {}".format(
+                        prob, player.name, connection.name
+                    )
+                )
+    else:
+        return "You aren't allowed to set hard handicap"
+
 @command('handicap', 'hic')
 @player_only
 def c_handicap(player, argval = None):
@@ -29,7 +65,7 @@ def c_handicap(player, argval = None):
     if argval is None:
         return "You give a {} % handicap".format(player.miss_probability)
     elif argval.isdecimal():
-        prob = int(argval)
+        prob = max(int(argval), player.base_miss_probability)
 
         if prob < 0 or 100 < prob:
             return "Handicap level should be between 0 and 100 %"
@@ -53,6 +89,7 @@ def apply_script(protocol, connection, config):
             connection.__init__(self, *w, **kw)
 
             self.miss_probability = 0
+            self.base_miss_probability = 0
 
         def on_hit(self, hit_amount, player, kill_type, grenade):
             if player is None or player is self or grenade is not None:
