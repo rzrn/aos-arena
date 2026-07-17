@@ -22,10 +22,42 @@ from pyspades import contained as loaders
 from pyspades.weapon import BaseWeapon
 from pyspades.constants import *
 
+from piqueserver.commands import command, player_only, get_player
+
 from arenalib.common import ArenaException
+
+@command('difficulty', 'level', 'lvl')
+@player_only
+def c_difficulty(player, argval = None):
+    """
+    Set a difficulty level or show it for a given player
+    /difficulty <level> or /difficulty <nickname> or /lvl
+    """
+
+    protocol = player.protocol
+
+    if argval is None:
+        return "Your difficulty level is {}".format(player.difficulty_level)
+    elif argval.isdecimal():
+        level = int(argval)
+
+        if level < 0 or 100 < level:
+            return "Difficulty level should be between 0 and 100"
+        elif player.difficulty_level == level:
+            return "Your difficulty level is already {}".format(level)
+        else:
+            player.difficulty_level = level
+            player.weapon_object.damage_modifier = player.get_damage_modifier()
+
+            protocol.broadcast_chat("{} has chosen difficulty level {}".format(player.name, level))
+    else:
+        target = get_player(protocol, argval)
+
+        return "Difficulty level for {} is {}".format(target.name, target.difficulty_level)
 
 class Weapon(BaseWeapon):
     discard_reloading = False
+    damage_modifier = 1.0
 
     def get_damage(self, value, v1, v2):
         d = distance_3d_vector(v1, v2)
@@ -33,7 +65,7 @@ class Weapon(BaseWeapon):
         t = (d - self.near) / (self.far - self.near)
         t = 1 - max(0, min(1, t))
 
-        return ceil(self.damage[value] * t)
+        return ceil(self.damage_modifier * self.damage[value] * t)
 
     def on_reload(self):
         self.reloading = False
@@ -115,6 +147,11 @@ class Shotgun(Weapon):
 
 def apply_script(protocol, connection, config):
     class FalloffConnection(connection):
+        difficulty_level = 0 # It is duplicated here to persist between weapon changes
+
+        def get_damage_modifier(self):
+            return 1.0 - self.difficulty_level / 100
+
         def get_weapon(self, weapon):
             ds = self.protocol.map_info.extensions
 
@@ -154,6 +191,8 @@ def apply_script(protocol, connection, config):
                     self.weapon_object.reset()
 
                 self.weapon_object = weapon_class(self._on_reload)
+
+                self.weapon_object.damage_modifier = self.get_damage_modifier()
 
                 ds = self.protocol.map_info.extensions
                 self.weapon_object.discard_reloading = ds.get("arena_discard_reloading", False)
