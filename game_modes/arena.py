@@ -44,6 +44,8 @@ from pyspades import world
 
 from piqueserver.config import config
 
+from arenalib.packets import DamageMarkerPacket, EXTENSION_DAMAGE_MARKERS
+
 from arenalib.defusal import (
     arena_try_defuse, arena_bomb_effect,
     arena_bomb_explosion_duration
@@ -75,6 +77,8 @@ def is_team_dead(team):
     return all(not player.is_alive() for player in team.get_players())
 
 def apply_script(protocol, connection, config):
+    arena_extensions = [(EXTENSION_DAMAGE_MARKERS, 1)]
+
     class ArenaConnection(connection):
         cash_balance         = 0
         last_spadenade_usage = 0
@@ -677,6 +681,13 @@ def apply_script(protocol, connection, config):
                 elif retval is not None:
                     hit_amount = retval
 
+                if EXTENSION_DAMAGE_MARKERS in self.proto_extensions:
+                    contained            = DamageMarkerPacket()
+                    contained.player_id  = player.player_id
+                    contained.hit_amount = hit_amount
+
+                    self.send_contained(contained)
+
                 self.try_revoke_builder_kit()
                 player.hit(hit_amount, self, kill_type)
 
@@ -953,6 +964,8 @@ def apply_script(protocol, connection, config):
             self.time          = monotonic()
             self.stopwatch     = 0
             self.players_alive = 0
+
+            self.available_proto_extensions.extend(arena_extensions)
 
         def on_world_update(self):
             dt = monotonic() - self.time
