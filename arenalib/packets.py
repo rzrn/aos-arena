@@ -27,6 +27,6 @@ class DamageMarkerPacket(Loader):
         self.hit_amount = 0
 
     def write(self, writer : ByteWriter):
-        writer.writeByte(self.id, True)
-        writer.writeByte(self.player_id, True)
-        writer.writeByte(self.hit_amount, True)
+        writer.writeUInt8LE(self.id)
+        writer.writeUInt8LE(self.player_id)
+        writer.writeUInt8LE(self.hit_amount)
