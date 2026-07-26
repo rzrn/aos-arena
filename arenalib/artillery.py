@@ -17,7 +17,7 @@ from math import sin, cos, radians
 from dataclasses import dataclass
 from random import uniform
 
-from twisted.internet.reactor import callLater
+import asyncio
 
 from pyspades.contained import SetColor, BlockAction, GrenadePacket
 from pyspades.common import Vertex3, make_color
@@ -108,6 +108,8 @@ class LightFieldGun:
 
         protocol = player.protocol
 
+        loop = asyncio.get_running_loop()
+
         if self.is_barrel_broken(protocol):
             self.do_explode_shell(player, x0, y0, z0)
         else:
@@ -133,11 +135,11 @@ class LightFieldGun:
 
             for t, x, y, z in cast(r, v):
                 if protocol.map.get_solid(x, y, z):
-                    self.shell_explode_call = callLater(t, self.do_explode_shell, player, x, y, z - 1)
+                    self.shell_explode_call = loop.call_later(t, self.do_explode_shell, player, x, y, z - 1)
 
                     break
 
-        self.shell_reload_call = callLater(60 / self.rate_of_fire, self.do_release_trigger, protocol, x0, y0, z0)
+        self.shell_reload_call = loop.call_later(60 / self.rate_of_fire, self.do_release_trigger, protocol, x0, y0, z0)
 
 def fire_gun_on_block_removed(game_field_guns):
     def on_block_removed(player, x, y, z):
@@ -153,14 +155,10 @@ def unload_guns_on_map_unloaded(game_field_guns):
         for field_gun in game_field_guns.values():
             if defer := field_gun.shell_explode_call:
                 field_gun.shell_explode_call = None
-
-                if defer.active():
-                    defer.cancel()
+                defer.cancel()
 
             if defer := field_gun.shell_reload_call:
                 field_gun.shell_reload_call = None
-
-                if defer.active():
-                    defer.cancel()
+                defer.cancel()
 
     return on_map_unloaded

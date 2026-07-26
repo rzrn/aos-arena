@@ -16,7 +16,7 @@
 from random import uniform
 from time import monotonic
 
-from twisted.internet import reactor
+import asyncio
 
 from pyspades.contained import IntelDrop, GrenadePacket
 from pyspades.collision import vector_collision
@@ -47,22 +47,27 @@ def grenade_effect(protocol, player_id, x, y, z):
 
     protocol.broadcast_contained(contained)
 
-def arena_bomb_effect(player, bomb):
-    player.grenade_exploded(bomb, dmax = 512)
-
-    x,  y,  z  = bomb.position.get()
+async def bomb_effect(protocol, player_id, r):
+    x,  y,  z  = r.get()
     dx, dy, dz = 1.5, 1.5, 1.5
 
     for k in range(5):
-        reactor.callLater(
-            uniform(0.25, 0.75),
-            grenade_effect,
-            player.protocol,
-            player.player_id,
+        await asyncio.sleep(uniform(0.15, 0.25))
+
+        grenade_effect(
+            protocol,
+            player_id,
             x + uniform(-dx, +dx),
             y + uniform(-dy, +dy),
             z + uniform(-dz, +dz)
         )
+
+def arena_bomb_effect(player, bomb):
+    player.grenade_exploded(bomb, dmax = 512)
+
+    asyncio.create_task(
+        bomb_effect(player.protocol, player.player_id, bomb.position)
+    )
 
 def get_defuse_time(player):
     if player.has_defuse_kit:
