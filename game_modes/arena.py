@@ -1132,8 +1132,7 @@ def apply_script(protocol, connection, config):
 
             if timers := self.arena_countdown_timers:
                 for timer in timers:
-                    if timer.active():
-                        timer.cancel()
+                    timer.cancel()
 
             self.arena_counting_down = False
             self.begin_arena_countdown(self.arena_map_change_delay)
