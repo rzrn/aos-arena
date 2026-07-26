@@ -27,7 +27,7 @@ from time import monotonic
 from random import choice
 import math
 
-from twisted.internet import reactor
+import asyncio
 
 from pyspades.contained import (
     HitPacket, BlockAction, KillAction, IntelPickup,
@@ -257,7 +257,7 @@ def apply_script(protocol, connection, config):
             respawn_time = self.get_respawn_time()
 
             if 0 < respawn_time:
-                self.spawn_call = reactor.callLater(respawn_time, self.spawn)
+                self.spawn_call = asyncio.get_running_loop().call_later(respawn_time, self.spawn)
             elif respawn_time < 0:
                 return
             else:
@@ -1010,7 +1010,7 @@ def apply_script(protocol, connection, config):
             if player := self.get_arbitrary_player(bomb.team):
                 arena_bomb_effect(player, bomb)
 
-            reactor.callLater(arena_bomb_explosion_duration, self.arena_win, bomb.team)
+            asyncio.get_running_loop().call_later(arena_bomb_explosion_duration, self.arena_win, bomb.team)
 
         def check_round_end(self, killer = None):
             P1 = is_team_dead(self.team_1)
@@ -1223,9 +1223,11 @@ def apply_script(protocol, connection, config):
             if map_on_arena_end := getattr(o, 'on_arena_end', None):
                 map_on_arena_end(self)
 
+            loop = asyncio.get_running_loop()
+
             self.arena_countdown_timers = [
-                reactor.callLater(delay - 5, self.game_start_warning, 5),
-                reactor.callLater(delay, self.begin_arena)
+                loop.call_later(delay - 5, self.game_start_warning, 5),
+                loop.call_later(delay, self.begin_arena)
             ]
 
         def begin_arena(self, await_players = True):
