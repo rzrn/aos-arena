@@ -73,13 +73,29 @@ class WorldVXL(VXLData):
             raise
 
     async def on_map_loaded(self, protocol):
+        await VXLData.on_map_loaded(self, protocol)
+
         if defer := self.looping_call:
             defer.cancel()
+
+            try:
+                await defer
+            except asyncio.CancelledError:
+                pass
+
         self.looping_call = protocol.create_task(self.dump_looping_call())
 
     async def on_map_unloaded(self, protocol):
+        await VXLData.on_map_unloaded(self, protocol)
+
         if defer := self.looping_call:
             defer.cancel()
+
+            try:
+                await defer # Make sure that everything is saved
+            except asyncio.CancelledError:
+                pass
+
         self.looping_call = None
 
 def denorm8(x):
