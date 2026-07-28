@@ -21,7 +21,7 @@ import random
 from os.path import splitext, isfile, isdir
 from os import scandir
 
-from twisted.internet.task import LoopingCall
+import asyncio
 
 from pyspades.contained import BlockAction, BlockLine, GrenadePacket
 from pyspades.constants import BUILD_BLOCK, DESTROY_BLOCK
@@ -29,6 +29,9 @@ from pyspades.common import Vertex3, make_color
 from pyspades.entities import Flag
 from pyspades.vxl import VXLData
 from pyspades import world
+
+from pyspades.logger import getLogger
+log = getLogger()
 
 from arenalib.raycast import cube_line
 
@@ -45,19 +48,39 @@ class WorldVXL(VXLData):
             self.mapgen()
             self.dump()
 
-        self.looping_call = LoopingCall(self.dump)
-        self.looping_call.start(60.0, now = False)
+        self.looping_call = None
 
     def dump(self):
-        # TODO: do we need to run this as `deferToThread`?
+        # TODO: do we need to run this as `asyncio.to_thread`?
         with open(self.filename, 'wb') as fout:
             fout.write(self.generate())
+
+            log.debug("Map saved to ‘{filename}’", filename = self.filename)
 
     def mapgen(self):
         grass = make_color(32, 146, 30)
 
         for x, y in product(range(512), range(512)):
             self.set_column_fast(x, y, 61, 63, 61, grass)
+
+    async def dump_looping_call(self):
+        try:
+            while True:
+                await asyncio.sleep(60.0)
+                self.dump()
+        except asyncio.CancelledError:
+            self.dump() # We’re shutting down
+            raise
+
+    async def on_map_loaded(self, protocol):
+        if defer := self.looping_call:
+            defer.cancel()
+        self.looping_call = protocol.create_task(self.dump_looping_call())
+
+    async def on_map_unloaded(self, protocol):
+        if defer := self.looping_call:
+            defer.cancel()
+        self.looping_call = None
 
 def denorm8(x):
     return int(x * 255)
@@ -187,14 +210,6 @@ def respawn_on_flag_sunken(protocol, entity):
 
 def refill_on_flag_taken(player):
     player.refill()
-
-def dump_on_map_unloaded(protocol, rot_info):
-    vxl = protocol.map
-
-    if vxl.looping_call.running:
-        vxl.looping_call.stop()
-
-    vxl.dump()
 
 def scandir_seed(dirname):
     if isdir(dirname) is False:

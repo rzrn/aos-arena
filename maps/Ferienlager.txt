@@ -26,7 +26,7 @@ from itertools import product
 from os.path import dirname
 from os import makedirs
 
-from arenalib.maptools import WorldVXL, CTF, dump_on_map_unloaded, scandir_on_seed_generation
+from arenalib.maptools import WorldVXL, CTF, scandir_on_seed_generation
 
 name        = "Ferienlager"
 team1_name  = "Children"
@@ -45,7 +45,6 @@ extensions = CTF(
     arena_respawn_time     = 3
 )
 
-on_map_unloaded    = dump_on_map_unloaded
 on_seed_generation = scandir_on_seed_generation
 
 def gen_script(basename, seed):
