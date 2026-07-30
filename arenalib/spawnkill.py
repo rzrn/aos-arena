@@ -1,5 +1,5 @@
 # Copyright © 2024–2026 rzrn
-# Copyright © 2024–2026 Spaten0
+# Copyright © 2026 Spaten0
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -34,12 +34,12 @@ DEFAULT_DECAY_TIME     = 30
 WARNING_POPUP        = "Spawnkilling will be punished"
 DEARH_POPUP          = "You pay the price"
 BROADCAST_HIT_TEXT   = "{} was punished for spawnkilling (-{} hp)"
-BROADCAST_DEATH_TEXT = "{} was punished for spawnkillinig and died"
+BROADCAST_DEATH_TEXT = "{} was punished for spawnkilling and died"
 
 arena_section = config.section("arena")
 
 # Some maps might encourage fast-pased gameplay where kill right after spawn
-# can be considered not spawncamping (for example: close quarters ffa maps)
+# wont be considered spawncamping (for example: close quarters ffa maps)
 period             = arena_section.option("spawnkill_period", DEFAULT_PERIOD).get()
 check_interval     = arena_section.option("spawnkill_check_interval", DEFAULT_CHECK_INTERVAL).get()
 decay_time         = arena_section.option("spawnkill_decay_time", DEFAULT_DECAY_TIME).get()
@@ -70,10 +70,10 @@ def get_decayed_score(player):
     protocol = player.protocol
 
     if not isinstance(player, protocol.connection_class):
-      return 0
+        return 0
 
     if player.last_spawnkill_time == 0:
-      return player.spawnkill_score
+        return player.spawnkill_score
 
     T = monotonic()
     decay = (T - player.last_spawnkill_time) / decay_time
@@ -96,7 +96,7 @@ def check_spawnkill(victim, killer, kill_type, grenade):
     # considered a valid tactic to extract intel from protected base.
     #
     # On the other hand, grenade teamkills can easily be abused because
-    # killer will die with killed teammates and respawn with new nades.
+    # killer will die with killed teammates and respawn with new ammo.
     if kill_type == GRENADE_KILL and killer.team is not victim.team:
         return
 
@@ -118,24 +118,25 @@ def check_spawnkill(victim, killer, kill_type, grenade):
     killer.spawnkill_time_deque.appendleft(T)
 
     if killer.spawnkill_score < PUNISHMENT_SCORE_THRESHOLD:
-      return
+        return
 
     if not killer.warned_of_spawnkill:
-      killer.warned_of_spawnkill = True
-      killer.send_chat_error(WARNING_POPUP)
+        killer.warned_of_spawnkill = True
+        killer.send_chat_error(WARNING_POPUP)
 
     # Every spawnkill above punishment threshold results in increasing damage
     punishment = (killer.spawnkill_score - PUNISHMENT_SCORE_THRESHOLD)
     punishment *= PUNISHMENT_DMG_MULTIPLIER
+
     if punishment == 0: return
 
     # Notify other players, most importantly the victims so that they would
     # stay, knowing that spawnkilling will be prevented
     if killer.hp > punishment:
-      message = BROADCAST_HIT_TEXT.format(killer.name, punishment)
+        message = BROADCAST_HIT_TEXT.format(killer.name, punishment)
     else:
-      killer.send_chat_error(DEARH_POPUP)
-      message = BROADCAST_DEATH_TEXT.format(killer.name)
+        killer.send_chat_error(DEARH_POPUP)
+        message = BROADCAST_DEATH_TEXT.format(killer.name)
 
     killer.protocol.broadcast_chat(message)
 

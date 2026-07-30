@@ -711,7 +711,7 @@ def apply_script(protocol, connection, config):
 
             connection.on_weapon_input_recieved(self, contained)
 
-            # OS sends weapon input on respawn which results in AFK resseting
+            # OS sends weapon input on respawn which results in AFK reseting
             # when player respawns
             if monotonic() - self.last_spawn_time > 0.2:
                 self.last_activity_time = T

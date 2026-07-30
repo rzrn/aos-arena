@@ -169,7 +169,7 @@ def c_teamkillcount(connection, nickname = None, timeval = None):
 def c_teamkillcount(connection, nickname = None, timeval = None):
     """
     Report a number of spawnkills for a given period of time
-    /teamkillcount or /skc [player] [timedelta]
+    /spawnkillcount or /skc [player] [timedelta]
     """
 
     protocol = connection.protocol
@@ -185,11 +185,11 @@ def c_teamkillcount(connection, nickname = None, timeval = None):
     score = get_decayed_score(player)
 
     if count > M:
-        return "{}: more than {} spawnkill(s) in {}, with score of {}".format(
+        return "{}: more than {} spawnkill(s) in {}, with the score of {}".format(
             player.name, count, prettify_timespan(Δt), score
         )
     else:
-        return "{}: {} spawnkill(s) in {}, with score of {}".format(
+        return "{}: {} spawnkill(s) in {}, with the score of {}".format(
             player.name, count, prettify_timespan(Δt), score
         )
 
