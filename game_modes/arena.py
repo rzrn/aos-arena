@@ -51,6 +51,7 @@ from arenalib.defusal import (
     arena_bomb_explosion_duration
 )
 from arenalib.common import ArenaException, wall_tunnel
+from arenalib.spawnkill import check_spawnkill
 
 MAX_TEAM_NAME_SIZE = 9
 
@@ -97,8 +98,13 @@ def apply_script(protocol, connection, config):
         def __init__(self, *w, **kw):
             connection.__init__(self, *w, **kw)
 
-            self.teamkill_time_deque = deque(maxlen = 30)
-            self.last_activity_time = None
+            self.teamkill_time_deque  = deque(maxlen = 30)
+            self.spawnkill_time_deque = deque(maxlen = 30)
+            self.last_spawn_time      = 0
+            self.last_spawnkill_time  = 0
+            self.spawnkill_score      = 0
+            self.warned_of_spawnkill  = False
+            self.last_activity_time   = None
 
         def give_player_cash(self, amount):
             self.cash_balance = max(0, min(16_000, self.cash_balance + amount))
@@ -196,6 +202,8 @@ def apply_script(protocol, connection, config):
 
             if retval is False: return False
 
+            check_spawnkill(self, killer, kill_type, grenade)
+
             if killer is not None:
                 ds = self.protocol.map_info.extensions
 
@@ -224,13 +232,13 @@ def apply_script(protocol, connection, config):
                     Vertex3(0, 0, 0), self.grenade_exploded
                 )
                 grenade.team = self.team
-    
+
                 contained           = GrenadePacket()
                 contained.player_id = self.player_id
                 contained.value     = fuse
                 contained.position  = grenade.position.get()
                 contained.velocity  = grenade.velocity.get()
-    
+
                 protocol.broadcast_contained(contained)
 
                 protocol.arena_timer_delay = max(protocol.arena_timer_delay, monotonic() + fuse)
@@ -298,6 +306,7 @@ def apply_script(protocol, connection, config):
             self.has_defuse_kit      = False
             self.has_kevlar_equipped = False
             self.has_helmet_equipped = False
+            self.last_spawn_time     = monotonic()
 
             ds = self.protocol.map_info.extensions
 
@@ -701,7 +710,11 @@ def apply_script(protocol, connection, config):
                         self.grenade_unpin_time = 0
 
             connection.on_weapon_input_recieved(self, contained)
-            self.last_activity_time = monotonic()
+
+            # OS sends weapon input on respawn which results in AFK resseting
+            # when player respawns
+            if monotonic() - self.last_spawn_time > 0.2:
+                self.last_activity_time = T
 
         def try_to_buy(self, item_name, price):
             if price <= 0:

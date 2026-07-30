@@ -29,6 +29,7 @@ from piqueserver.utils import timeparse
 from piqueserver.config import config
 
 from arenalib.raycast import line_rasterizer
+from arenalib.spawnkill import get_spawnkill_count, get_decayed_score
 
 class ArenaException(Exception):
     pass
@@ -162,6 +163,34 @@ def c_teamkillcount(connection, nickname = None, timeval = None):
     else:
         return "{}: >{} teamkill(s) in {}".format(
             player.name, M, prettify_timespan(Δt)
+        )
+
+@command('spawnkillcount', 'skc')
+def c_teamkillcount(connection, nickname = None, timeval = None):
+    """
+    Report a number of spawnkills for a given period of time
+    /teamkillcount or /skc [player] [timedelta]
+    """
+
+    protocol = connection.protocol
+
+    player = connection if nickname is None else get_player(protocol, nickname)
+
+    Δt = 3600 if timeval is None else timeparse(timeval)
+    if Δt is None: return "'{}' was not recognized as a valid time value".format(timeval)
+
+    count = get_spawnkill_count(player, Δt)
+    M = connection.spawnkill_time_deque.maxlen
+
+    score = get_decayed_score(player)
+
+    if count > M:
+        return "{}: more than {} spawnkill(s) in {}, with score of {}".format(
+            player.name, count, prettify_timespan(Δt), score
+        )
+    else:
+        return "{}: {} spawnkill(s) in {}, with score of {}".format(
+            player.name, count, prettify_timespan(Δt), score
         )
 
 @command('givebuilderkit', 'gvbkit', 'toggleautorefill', 'autorefill', 'tarl', admin_only = True)
