@@ -22,27 +22,7 @@ from piqueserver.config import config
 
 from pyspades.constants import GRENADE_KILL
 
-
-PUNISHMENT_SCORE_THRESHOLD = 5
-PUNISHMENT_DMG_MULTIPLIER  = 10
-SCORE_CAP                  = 10
-
-DEFAULT_PERIOD         = 1.8
-DEFAULT_CHECK_INTERVAL = 30
-DEFAULT_DECAY_TIME     = 30
-
-WARNING_POPUP        = "Spawnkilling will be punished"
-DEARH_POPUP          = "You pay the price"
-BROADCAST_HIT_TEXT   = "{} was punished for spawnkilling (-{} hp)"
-BROADCAST_DEATH_TEXT = "{} was punished for spawnkilling and died"
-
-arena_section = config.section("arena")
-
-# Some maps might encourage fast-pased gameplay where kill right after spawn
-# wont be considered spawncamping (for example: close quarters ffa maps)
-period             = arena_section.option("spawnkill_period", DEFAULT_PERIOD).get()
-check_interval     = arena_section.option("spawnkill_check_interval", DEFAULT_CHECK_INTERVAL).get()
-decay_time         = arena_section.option("spawnkill_decay_time", DEFAULT_DECAY_TIME).get()
+arena_section      = config.section("arena")
 afk_time_threshold = arena_section.option("afk_time_threshold", 15.0).get()
 
 
@@ -68,6 +48,12 @@ def get_spawnkill_count(connection, seconds):
 
 def get_decayed_score(player):
     protocol = player.protocol
+    ds = protocol.map_info.extensions
+
+    config = ds.get("arena_spawnkill")
+    if config is None: return 0
+
+    decay_time = config.get("decay_time", 30)
 
     if not isinstance(player, protocol.connection_class):
         return 0
@@ -85,6 +71,10 @@ def get_decayed_score(player):
 def check_spawnkill(victim, killer, kill_type, grenade):
     if killer is None: return
     T = monotonic()
+    ds = killer.protocol.map_info.extensions
+
+    config = ds.get("arena_spawnkill")
+    if config is None: return
 
     # Spawnkill of inactive player does not ruin the game for other
     # players and should not result in punishment
@@ -100,43 +90,69 @@ def check_spawnkill(victim, killer, kill_type, grenade):
     if kill_type == GRENADE_KILL and killer.team is not victim.team:
         return
 
+    spawnkill_period       = config.get("spawnkill_period",      1.8)
+    score_cap              = config.get("score_cap",              10)
+    punishment_threshold   = config.get("punishment_threshold",    5)
+    nade_teamkill_period   = config.get("nade_teamkill_period",  4.0)
+    punished_period_mult   = config.get("punished_period_mult",  1.5)
+
     score = get_decayed_score(killer)
-    corrected_period = period
+    corrected_period = spawnkill_period
 
     # Spawnkilling teammates with grenade should respect fuse time
-    if kill_type == GRENADE_KILL: corrected_period = 4.0
+    if kill_type == GRENADE_KILL:
+        corrected_period = nade_teamkill_period
 
-    # If killer has gained the enough score for punishment spawnkill period
+    # If killer has gained enough score for punishment spawnkill period
     # should be less forgiving
-    if score > PUNISHMENT_SCORE_THRESHOLD: corrected_period *= 1.5
+    if score > punishment_threshold:
+        corrected_period *= punished_period_mult
 
     if (T - victim.last_spawn_time) > corrected_period:
         return
 
-    killer.spawnkill_score     = min(SCORE_CAP, score + 1)
+    killer.spawnkill_score     = min(score_cap, score + 1)
     killer.last_spawnkill_time = T
     killer.spawnkill_time_deque.appendleft(T)
 
-    if killer.spawnkill_score < PUNISHMENT_SCORE_THRESHOLD:
+    if killer.spawnkill_score < punishment_threshold:
         return
 
-    if not killer.warned_of_spawnkill:
-        killer.warned_of_spawnkill = True
-        killer.send_chat_error(WARNING_POPUP)
+    killer.on_spawnkill_warning(victim, kill_type, grenade)
+
+    killer.on_spawnkill_punishment(victim, kill_type, grenade)
+
+
+
+def handle_spawnkill_warning(victim, killer, kill_type, grenade):
+    if killer.warned_of_spawnkill: return
+
+    killer.warned_of_spawnkill = True
+    killer.send_chat_error("Spawnkilling will be punished")
+
+
+
+def handle_spawnkill_punishment(victim, killer, kill_type, grenade):
+    ds = killer.protocol.map_info.extensions
+
+    config = ds.get("arena_spawnkill")
+    if config is None: return
+
+    punishment_threshold   = config.get("punishment_threshold",    5)
+    punishment_damage_mult = config.get("punishment_damage_mult", 10)
 
     # Every spawnkill above punishment threshold results in increasing damage
-    punishment = (killer.spawnkill_score - PUNISHMENT_SCORE_THRESHOLD)
-    punishment *= PUNISHMENT_DMG_MULTIPLIER
+    punishment = (killer.spawnkill_score - punishment_threshold) * punishment_damage_mult
 
     if punishment == 0: return
 
     # Notify other players, most importantly the victims so that they would
     # stay, knowing that spawnkilling will be prevented
     if killer.hp > punishment:
-        message = BROADCAST_HIT_TEXT.format(killer.name, punishment)
+        message = f"{killer.name} was punished for spawnkilling (-{punishment} hp)"
     else:
-        killer.send_chat_error(DEARH_POPUP)
-        message = BROADCAST_DEATH_TEXT.format(killer.name)
+        killer.send_chat_error("You pay the price")
+        message = f"{killer.name} was punished for spawnkilling and died"
 
     killer.protocol.broadcast_chat(message)
 

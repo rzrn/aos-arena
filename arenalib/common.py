@@ -166,7 +166,7 @@ def c_teamkillcount(connection, nickname = None, timeval = None):
         )
 
 @command('spawnkillcount', 'skc')
-def c_teamkillcount(connection, nickname = None, timeval = None):
+def c_spawnkillcount(connection, nickname = None, timeval = None):
     """
     Report a number of spawnkills for a given period of time
     /spawnkillcount or /skc [player] [timedelta]

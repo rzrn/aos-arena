@@ -192,7 +192,15 @@ def CTF(**kw):
         arena_time_limit       = 0,
         arena_respawn_time     = 10,
         arena_heartbeat_rate   = inf,
-        arena_has_refill       = True
+        arena_has_refill       = True,
+
+        arena_spawnkill = dict(
+            spawnkill_period       = 1.8,
+            decay_time             = 30,
+            score_cap              = 10,
+            punishment_threshold   = 5,
+            punishment_damage_mult = 10
+        )
     )
 
     ds.update(kw)
