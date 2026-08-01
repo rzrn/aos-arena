@@ -700,11 +700,10 @@ def apply_script(protocol, connection, config):
                     else:
                         self.grenade_unpin_time = 0
 
-            if contained.primary == wo.primary_fire and contained.secondary == wo.secondary_fire:
-                return
+                if contained.primary != wo.primary_fire or contained.secondary != wo.secondary_fire:
+                    self.last_activity_time = monotonic()
 
             connection.on_weapon_input_recieved(self, contained)
-            self.last_activity_time = monotonic()
 
         def try_to_buy(self, item_name, price):
             if price <= 0:
