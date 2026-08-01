@@ -34,7 +34,7 @@ class ArenaException(Exception):
     pass
 
 arena_section       = config.section("arena")
-afk_time_threshold  = arena_section.option("afk_time_threshold", 15.0).get()
+afk_time_threshold  = arena_section.option("afk_time_threshold", 60.0).get()
 flag_throw_distance = arena_section.option("flag_throw_distance", 5.0).get()
 
 @command('lsmap', 'statmap')
