@@ -51,11 +51,6 @@ from arenalib.defusal import (
     arena_bomb_explosion_duration
 )
 from arenalib.common import ArenaException, wall_tunnel
-from arenalib.spawnkill import (
-    check_spawnkill,
-    handle_spawnkill_punishment,
-    handle_spawnkill_warning
-)
 
 MAX_TEAM_NAME_SIZE = 9
 
@@ -102,13 +97,8 @@ def apply_script(protocol, connection, config):
         def __init__(self, *w, **kw):
             connection.__init__(self, *w, **kw)
 
-            self.teamkill_time_deque  = deque(maxlen = 30)
-            self.spawnkill_time_deque = deque(maxlen = 30)
-            self.last_spawn_time      = 0
-            self.last_spawnkill_time  = 0
-            self.spawnkill_score      = 0
-            self.warned_of_spawnkill  = False
-            self.last_activity_time   = None
+            self.teamkill_time_deque = deque(maxlen = 30)
+            self.last_activity_time = None
 
         def give_player_cash(self, amount):
             self.cash_balance = max(0, min(16_000, self.cash_balance + amount))
@@ -205,8 +195,6 @@ def apply_script(protocol, connection, config):
             retval = connection.on_kill(self, killer, kill_type, grenade)
 
             if retval is False: return False
-
-            check_spawnkill(self, killer, kill_type, grenade)
 
             if killer is not None:
                 ds = self.protocol.map_info.extensions
@@ -310,7 +298,6 @@ def apply_script(protocol, connection, config):
             self.has_defuse_kit      = False
             self.has_kevlar_equipped = False
             self.has_helmet_equipped = False
-            self.last_spawn_time     = monotonic()
 
             ds = self.protocol.map_info.extensions
 
@@ -944,24 +931,6 @@ def apply_script(protocol, connection, config):
         def check_refill(self):
             self.try_use_buy_menu(self.tool)
 
-        def on_spawnkill_warning(self, victim, kill_type, grenade):
-            override = getattr(connection, "on_spawnkill_warning", None)
-
-            if override is not None:
-                retval = override(self, victim, kill_type, grenade)
-                if retval is False: return False
-
-            handle_spawnkill_warning(victim, self, kill_type, grenade)
-
-        def on_spawnkill_punishment(self, victim, kill_type, grenade):
-            override = getattr(connection, "on_spawnkill_punishment", None)
-
-            if override is not None:
-                retval = override(self, victim, kill_type, grenade)
-                if retval is False: return False
-
-            handle_spawnkill_punishment(victim, self, kill_type, grenade)
-
     class ArenaProtocol(protocol):
         game_mode = CTF_MODE
 
@@ -1129,11 +1098,6 @@ def apply_script(protocol, connection, config):
 
         def on_map_change(self, M):
             o = self.map_info.info
-
-            # Maybe it would be better to have a callback on connection too
-            # so there could be singular place for such "resets"
-            for player in self.connections.values():
-                player.warned_of_spawnkill = False
 
             self.team_1.name  = getattr(o, 'team1_name',  self.team1_name)
             self.team_1.color = getattr(o, 'team1_color', self.team1_color)
