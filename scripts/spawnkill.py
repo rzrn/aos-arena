@@ -93,7 +93,7 @@ def get_decayed_score(player):
     T = monotonic()
     decay = (T - player.last_spawnkill_time) / decay_time
 
-    return player.spawnkill_score - floor(decay)
+    return max(player.spawnkill_score - floor(decay), 0)
 
 
 
