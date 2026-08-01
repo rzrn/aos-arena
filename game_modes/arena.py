@@ -224,13 +224,13 @@ def apply_script(protocol, connection, config):
                     Vertex3(0, 0, 0), self.grenade_exploded
                 )
                 grenade.team = self.team
-    
+
                 contained           = GrenadePacket()
                 contained.player_id = self.player_id
                 contained.value     = fuse
                 contained.position  = grenade.position.get()
                 contained.velocity  = grenade.velocity.get()
-    
+
                 protocol.broadcast_contained(contained)
 
                 protocol.arena_timer_delay = max(protocol.arena_timer_delay, monotonic() + fuse)
@@ -700,8 +700,10 @@ def apply_script(protocol, connection, config):
                     else:
                         self.grenade_unpin_time = 0
 
+                if contained.primary != wo.primary_fire or contained.secondary != wo.secondary_fire:
+                    self.last_activity_time = monotonic()
+
             connection.on_weapon_input_recieved(self, contained)
-            self.last_activity_time = monotonic()
 
         def try_to_buy(self, item_name, price):
             if price <= 0:
