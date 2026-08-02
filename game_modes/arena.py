@@ -42,7 +42,7 @@ from pyspades.common import Vertex3
 from pyspades.constants import *
 from pyspades import world
 
-from piqueserver.config import config
+from horseradish.config import config
 
 from arenalib.packets import DamageMarkerPacket, EXTENSION_DAMAGE_MARKERS
 

@@ -18,9 +18,9 @@ from collections import deque
 from time import monotonic
 from math import floor
 
-from piqueserver.commands import player_only, command, get_player
-from piqueserver.utils import timeparse
-from piqueserver.config import config
+from horseradish.commands import player_only, command, get_player
+from horseradish.utils import timeparse
+from horseradish.config import config
 
 from pyspades.constants import GRENADE_KILL
 from pyspades.common import prettify_timespan

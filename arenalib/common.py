@@ -24,9 +24,9 @@ from pyspades.contained import GrenadePacket, IntelDrop
 from pyspades.collision import vector_collision
 from pyspades.common import prettify_timespan
 
-from piqueserver.commands import player_only, command, get_player
-from piqueserver.utils import timeparse
-from piqueserver.config import config
+from horseradish.commands import player_only, command, get_player
+from horseradish.utils import timeparse
+from horseradish.config import config
 
 from arenalib.raycast import line_rasterizer
 
@@ -202,7 +202,7 @@ def c_grenade_blast_radius(connection, argval = None):
 
     if argval is None: return "{:.1f}".format(protocol.grenade_blast_radius)
 
-    # TODO: needs to be synced with `has_permissions` from `piqueserver.commands`
+    # TODO: needs to be synced with `has_permissions` from `horseradish.commands`
     if connection.admin or c_grenade_blast_radius.command_name in connection.rights:
         radius = min(1024, max(0, float(argval)))
         protocol.grenade_blast_radius = radius

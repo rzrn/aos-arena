@@ -1,4 +1,4 @@
-# Copyright © 2025 rzrn
+# Copyright © 2025–2026 rzrn
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -23,8 +23,8 @@ from pyspades.collision import vector_collision
 from pyspades.common import Vertex3
 from pyspades import world
 
-from piqueserver.commands import player_only, command
-from piqueserver.config import config
+from horseradish.commands import player_only, command
+from horseradish.config import config
 
 arena_cross_color = (255, 31, 31)
 

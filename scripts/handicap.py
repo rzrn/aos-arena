@@ -15,7 +15,7 @@
 
 from random import uniform
 
-from piqueserver.commands import command, player_only, get_player
+from horseradish.commands import command, player_only, get_player
 
 @command('hardhandicap', 'hhic')
 def c_hardhandicap(connection, nickname, argval = None):

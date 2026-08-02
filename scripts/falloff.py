@@ -22,7 +22,7 @@ from pyspades import contained as loaders
 from pyspades.weapon import BaseWeapon
 from pyspades.constants import *
 
-from piqueserver.commands import command, player_only, get_player
+from horseradish.commands import command, player_only, get_player
 
 from arenalib.common import ArenaException
 
