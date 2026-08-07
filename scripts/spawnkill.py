@@ -102,10 +102,13 @@ def check_spawnkill(victim, killer, kill_type, grenade):
     T = monotonic()
     ds = killer.protocol.map_info.extensions
 
-    # Spawnkill of inactive player does not ruin the game for other
-    # players and should not result in punishment
-    if T - victim.last_activity_time > afk_time_threshold:
-        return
+    if T0 := victim.last_activity_time:
+        # Spawnkill of inactive player does not ruin the game for other
+        # players and should not result in punishment
+        if T - T0 > afk_time_threshold:
+            return
+    else:
+        return # No activity has been observed yet
 
     # Grenade kills are not really contributing to spawncamping due to
     # limited grenade count. Furthermore, in some situation it can be
