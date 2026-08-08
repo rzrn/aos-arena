@@ -1,6 +1,7 @@
+import os
 from pyspades.vxl import VXLData
 
-from arenalib.maptools import CTF, respawn_on_flag_sunken
+from arenalib.maptools import CTF, respawn_on_flag_sunken, open_in_subdir
 
 name        = 'ctf_goon_fort'
 cap_limit   = 5
@@ -20,7 +21,7 @@ extensions = CTF(
     water_damage           = 100
 )
 
-with open("maps/ctf_goon_fort.0.vxl", "rb") as fin:
+with open_in_subdir("maps", "ctf_goon_fort.0.vxl", "rb") as fin:
     mask = VXLData(fin)
 
 def is_indestructable(self, x, y, z):

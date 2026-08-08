@@ -18,10 +18,8 @@ from itertools import product
 from math import inf
 import random
 
-from os.path import splitext, isfile, isdir
-from os import scandir
-
 import asyncio
+import os
 
 from pyspades.contained import BlockAction, BlockLine, GrenadePacket
 from pyspades.constants import BUILD_BLOCK, DESTROY_BLOCK
@@ -29,6 +27,8 @@ from pyspades.common import Vertex3, make_color
 from pyspades.entities import Flag
 from pyspades.vxl import VXLData
 from pyspades import world
+
+from horseradish.config import config
 
 from pyspades.logger import getLogger
 log = getLogger()
@@ -39,7 +39,7 @@ class WorldVXL(VXLData):
     def __init__(self, filename):
         self.filename = filename
 
-        if isfile(filename):
+        if os.path.isfile(filename):
             with open(filename, 'rb') as fin:
                 VXLData.__init__(self, fin)
         else:
@@ -97,6 +97,14 @@ class WorldVXL(VXLData):
                 pass
 
         self.looping_call = None
+
+def open_in_subdir(subdir, filename, mode = 'r'):
+    if os.path.isabs(filename):
+        filepath = filename
+    else:
+        filepath = os.path.join(config.config_dir, subdir, filename)
+
+    return open(filepath, mode)
 
 def denorm8(x):
     return int(x * 255)
@@ -236,14 +244,14 @@ def refill_on_flag_taken(player):
     player.refill()
 
 def scandir_seed(dirname):
-    if isdir(dirname) is False:
+    if os.path.isdir(dirname) is False:
         return
 
-    for entry in scandir(dirname):
+    for entry in os.scandir(dirname):
         if entry.is_file() is False:
             continue
 
-        stem, suffix = splitext(entry.name)
+        stem, suffix = os.path.splitext(entry.name)
 
         if suffix != ".vxl":
             continue

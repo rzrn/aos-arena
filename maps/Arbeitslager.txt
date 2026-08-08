@@ -14,11 +14,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from itertools import product
+import os
 
-from os.path import isfile, dirname
-from os import makedirs
+from arenalib.maptools import WorldVXL, CTF, scandir_on_seed_generation, open_in_subdir
 
-from arenalib.maptools import WorldVXL, CTF, scandir_on_seed_generation
+from horseradish.config import config
 
 name        = "Arbeitslager"
 team1_name  = "Officers"
@@ -41,19 +41,18 @@ extensions = CTF(
 on_seed_generation = scandir_on_seed_generation
 
 def gen_script(basename, seed):
-    filename = "saves/{}.vxl".format(seed)
-    makedirs(dirname(filename), exist_ok = True)
-
-    metafile = "saves/{}.txt".format(seed)
+    savedir = os.path.join(config.config_dir, "saves")
+    os.makedirs(savedir, exist_ok = True)
 
     try:
-        fin = open(metafile, 'r')
+        script_file = open_in_subdir("saves", "{}.txt".format(seed))
     except FileNotFoundError:
         pass
     else:
         try:
-            exec(compile(fin.read(), metafile, 'exec'), globals())
+            exec(compile(script_file.read(), script_file.name, 'exec'), globals())
         finally:
-            fin.close()
+            script_file.close()
 
-    return WorldVXL(filename)
+    filename = "{}.vxl".format(seed)
+    return WorldVXL(os.path.join(savedir, filename))

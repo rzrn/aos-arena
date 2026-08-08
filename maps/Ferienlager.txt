@@ -22,11 +22,11 @@ In particular, it means that you can save an arbitrary map as “saves/X.vxl” 
 """
 
 from itertools import product
-
-from os.path import dirname
-from os import makedirs
+import os
 
 from arenalib.maptools import WorldVXL, CTF, scandir_on_seed_generation
+
+from horseradish.config import config
 
 name        = "Ferienlager"
 team1_name  = "Children"
@@ -48,7 +48,8 @@ extensions = CTF(
 on_seed_generation = scandir_on_seed_generation
 
 def gen_script(basename, seed):
-    filename = "saves/{}.vxl".format(seed)
-    makedirs(dirname(filename), exist_ok = True)
+    savedir = os.path.join(config.config_dir, "saves")
+    os.makedirs(savedir, exist_ok = True)
 
-    return WorldVXL(filename)
+    filename = "{}.vxl".format(seed)
+    return WorldVXL(os.path.join(savedir, filename))
