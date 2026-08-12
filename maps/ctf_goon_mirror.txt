@@ -1,0 +1,62 @@
+# Copyright © 2026 Spaten0
+# Copyright © 2026 rzrn
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+from pyspades.vxl import VXLData
+
+from arenalib.maptools import (
+    CTF, respawn_on_flag_sunken,
+    doBlockLinePacket, doBlockBuildPacket,
+    doBlockRemovePacket, open_in_subdir
+)
+
+name        = 'ctf_goon_mirror'
+author      = 'Spaten0'
+cap_limit   = 5
+team1_name  = 'Jekylls'
+team1_color = (68, 181, 189)
+team2_name  = 'Hydes'
+team2_color = (189, 68, 144)
+
+extensions = CTF(
+    arena_give_builder_kit = True,
+    arena_blue_spawns      = [(152, y, 32) for y in range(248, 265)],
+    arena_green_spawns     = [(360, y, 32) for y in range(248, 265)],
+    arena_blue_base        = (148, 256, 57),
+    arena_blue_flag        = (156, 256, 57),
+    arena_green_base       = (364, 256, 57),
+    arena_green_flag       = (356, 256, 57),
+    water_damage           = 100
+)
+
+with open_in_subdir("maps", "ctf_goon_mirror.0.vxl", "rb") as fin:
+    mask = VXLData(fin)
+
+def is_indestructable(self, x, y, z):
+    return bool(mask.get_solid(x, y, z))
+
+def on_line_build(player, points):
+    x1, y1, z1 = points[0]
+    x2, y2, z2 = points[-1]
+
+    doBlockLinePacket(player, 511 - x1, y1, z1, 511 - x2, y2, z2)
+
+def on_block_build(player, x, y, z):
+    doBlockBuildPacket(player, 511 - x, y, z)
+
+def on_block_removed(player, x, y, z):
+    doBlockRemovePacket(player, 511 - x, y, z)
+
+on_entity_updated = respawn_on_flag_sunken
