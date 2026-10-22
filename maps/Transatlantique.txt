@@ -1,0 +1,126 @@
+# Copyright © 2026 rzrn
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+from itertools import product
+from random import Random
+
+from pyspades.common import make_color
+from pyspades.vxl import VXLData
+
+from arenalib.maptools import CTF, HSV3fAsRGB3i, respawn_on_flag_sunken
+
+name        = "Transatlantique"
+version     = "1.0"
+team1_name  = "Bleus"
+team1_color = (0, 96, 255)
+team2_name  = "Rouges"
+team2_color = (255, 0, 96)
+
+xmin, xoff, xmax, ymin, yoff, ymax = -128, 64, 128, -128, 0, 128
+
+def ciota(t1, t2):
+    yield from range(t1, t2 + 1)
+
+def arena_blue_spawns():
+    for Δx, Δy in product(ciota(-xoff - 8 + 1, -xoff + 8 - 1), ciota(ymin, ymax)):
+        if Δx % 8 == 0:
+            continue
+
+        yield Δx, Δy
+
+def arena_green_spawns():
+    for Δx, Δy in product(ciota(+xoff - 8 + 1, +xoff + 8 - 1), ciota(ymin, ymax)):
+        if Δx % 8 == 0:
+            continue
+
+        yield Δx, Δy
+
+def arena_map_geometry():
+    # Main corridor on the team 1 side
+    yield from product(ciota(-xoff - 8, -xoff + 8), ciota(ymin, ymax))
+
+    # Main corridor on the team 2 side
+    yield from product(ciota(+xoff - 8, +xoff + 8), ciota(ymin, ymax))
+
+    for Δx in ciota(xmin + 8, xmax - 8):
+        if abs(Δx) < 8:
+            continue
+
+        # Left corridor
+        for Δy in ciota(ymin - 8, ymin + 8):
+            yield Δx, Δy
+
+        # Central corridor
+        for Δy in ciota(yoff - 8, yoff + 8):
+            yield Δx, Δy
+
+        # Right corridor
+        for Δy in ciota(ymax - 8, ymax + 8):
+            yield Δx, Δy
+
+extensions = CTF(
+    water_damage           = 100,
+    arena_give_builder_kit = True,
+    arena_blue_spawns      = [(256 + Δx, 256 + Δy, 8) for Δx, Δy in arena_blue_spawns()],
+    arena_blue_base        = (220, 256, 8),
+    arena_blue_flag        = (236, 256, 8),
+    arena_green_spawns     = [(256 + Δx, 256 + Δy, 8) for Δx, Δy in arena_green_spawns()],
+    arena_green_base       = (292, 256, 8),
+    arena_green_flag       = (276, 256, 8)
+)
+
+mask = None
+
+def is_indestructable(connection, x, y, z):
+    return mask.get_solid(x, y, z)
+
+def gen_script(basename, seed):
+    global fog
+
+    rgen = Random(seed)
+
+    hue = rgen.uniform(0.0, 1.0)
+
+    water  = HSV3fAsRGB3i(hue, 0.45, 1.0)
+    fog    = HSV3fAsRGB3i(hue, 0.35, 1.0)
+    color1 = HSV3fAsRGB3i(hue, 0.25, 1.0)
+    color2 = HSV3fAsRGB3i(hue, 0.40, 1.0)
+
+    vxl = VXLData()
+
+    global mask
+    mask = VXLData()
+
+    for x, y in product(range(512), range(512)):
+        vxl.set_point(x, y, 63, water)
+
+    rgba2 = make_color(*color2)
+
+    for Δx, Δy in arena_map_geometry():
+        x, y = 256 + Δx, 256 + Δy
+
+        if Δx % 8 == Δy % 8 == 0:
+            vxl.set_column_fast(x, y, 0, 63, 63, rgba2)
+            mask.set_column_fast(x, y, 0, 63, 63, 0)
+        else:
+            is_on_grid = Δx % 8 == 0 or Δy % 8 == 0
+
+            for z in range(0, 63, 8):
+                vxl.set_point(x, y, z, color2 if is_on_grid else color1)
+                if is_on_grid or z == 0: mask.set_point(x, y, z, (0, 0, 0))
+
+    return vxl
+
+on_entity_updated = respawn_on_flag_sunken
