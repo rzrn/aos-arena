@@ -1,0 +1,129 @@
+# Copyright © 2026 rzrn
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+from itertools import product
+from random import Random
+
+from pyspades.common import make_color
+from pyspades.vxl import VXLData
+
+from arenalib.maptools import (
+    doBlockLinePacket, doBlockBuildPacket, doBlockRemovePacket,
+    CTF, HSV3fAsRGB3i, respawn_on_flag_sunken
+)
+
+name        = "Mockingbird"
+version     = "1.0"
+team1_name  = "Blue"
+team1_color = (0, 0, 255)
+team2_name  = "Red"
+team2_color = (255, 0, 0)
+
+xmin, xmax, ymin, ymax = 8, 120, -128, 128
+
+def ciota(t1, t2):
+    yield from range(t1, t2 + 1)
+
+def arena_blue_spawns():
+    for Δx, Δy in product(ciota(xmin + 16, xmax), ciota(-8, +8)):
+        if Δy % 8 == 0:
+            continue
+
+        yield 255 - Δx, 256 + Δy
+
+def arena_green_spawns():
+    for Δx, Δy in product(ciota(xmin + 16, xmax), ciota(-8, +8)):
+        if Δy % 8 == 0:
+            continue
+
+        yield 256 + Δx, 256 + Δy
+
+def arena_map_geometry():
+    yield from product(ciota(xmin, xmin + 16), ciota(ymin, ymax))
+    yield from product(ciota(xmin + 16, xmax), ciota(-8, +8))
+
+extensions = CTF(
+    water_damage           = 100,
+    arena_give_builder_kit = True,
+    arena_blue_spawns      = [(x, y, 61) for x, y in arena_blue_spawns()],
+    arena_blue_base        = (140, 256, 61),
+    arena_blue_flag        = (236, 256, 8),
+    arena_green_spawns     = [(x, y, 61) for x, y in arena_green_spawns()],
+    arena_green_base       = (372, 256, 61),
+    arena_green_flag       = (276, 256, 8)
+)
+
+mask = None
+
+def is_indestructable(connection, x, y, z):
+    return mask.get_solid(x, y, z)
+
+def gen_script(basename, seed):
+    global fog
+
+    rgen = Random(seed)
+
+    hue = rgen.uniform(0.0, 1.0)
+
+    water  = HSV3fAsRGB3i(hue, 0.25, 1.0)
+    fog    = HSV3fAsRGB3i(hue, 0.35, 1.0)
+    color1 = HSV3fAsRGB3i(hue, 0.20, 1.0)
+    color2 = HSV3fAsRGB3i(hue, 0.40, 1.0)
+
+    vxl = VXLData()
+
+    for x, y in product(range(512), range(512)):
+        vxl.set_point(x, y, 63, water)
+
+    global mask
+    mask = VXLData()
+
+    rgba2 = make_color(*color2)
+
+    for Δx, Δy in arena_map_geometry():
+        x, y = 256 + Δx, 256 + Δy
+
+        if Δx % 8 == Δy % 8 == 0:
+            vxl.set_column_fast(x, y, 0, 63, 63, rgba2)
+            mask.set_column_fast(x, y, 0, 63, 63, 0)
+
+            vxl.set_column_fast(511 - x, y, 0, 63, 63, rgba2)
+            mask.set_column_fast(511 - x, y, 0, 63, 63, 0)
+        else:
+            is_on_grid = Δx % 8 == 0 or Δy % 8 == 0
+
+            for z in [0, 7, 14, 22, 30, 31, 39, 47, 54, 61]:
+                vxl.set_point(x, y, z, color2 if is_on_grid else color1)
+                vxl.set_point(511 - x, y, z, color2 if is_on_grid else color1)
+
+                if is_on_grid or z == 0 or z == 61:
+                    mask.set_point(x, y, z, (0, 0, 0))
+                    mask.set_point(511 - x, y, z, (0, 0, 0))
+
+    return vxl
+
+def on_line_build(player, points):
+    x1, y1, z1 = points[0]
+    x2, y2, z2 = points[-1]
+
+    doBlockLinePacket(player, 511 - x1, y1, 61 - z1, 511 - x2, y2, 61 - z2)
+
+def on_block_build(player, x, y, z):
+    doBlockBuildPacket(player, 511 - x, y, 61 - z)
+
+def on_block_removed(player, x, y, z):
+    doBlockRemovePacket(player, 511 - x, y, 61 - z)
+
+on_entity_updated = respawn_on_flag_sunken
