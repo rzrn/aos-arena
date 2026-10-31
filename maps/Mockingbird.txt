@@ -59,10 +59,10 @@ extensions = CTF(
     arena_give_builder_kit = True,
     arena_blue_spawns      = [(x, y, 61) for x, y in arena_blue_spawns()],
     arena_blue_base        = (140, 256, 61),
-    arena_blue_flag        = (236, 256, 8),
+    arena_blue_flag        = (236, 256, 7),
     arena_green_spawns     = [(x, y, 61) for x, y in arena_green_spawns()],
     arena_green_base       = (372, 256, 61),
-    arena_green_flag       = (276, 256, 8)
+    arena_green_flag       = (276, 256, 7)
 )
 
 mask = None
