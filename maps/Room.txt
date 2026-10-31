@@ -1,0 +1,114 @@
+# Copyright © 2026 rzrn
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+from itertools import product
+from random import Random
+
+from pyspades.common import make_color
+from pyspades.vxl import VXLData
+
+from arenalib.maptools import (
+    CTF, HSV3fAsRGB3i, respawn_on_flag_sunken,
+    doBlockLinePacket, doBlockBuildPacket,
+    doBlockRemovePacket, doGrenadePacket
+)
+
+name        = "Room"
+version     = "1.0"
+team1_name  = "West"
+team1_color = (0, 0, 255)
+team2_name  = "East"
+team2_color = (255, 0, 0)
+
+def ciota(t1, t2):
+    yield from range(t1, t2 + 1)
+
+def arena_blue_spawns():
+    for Δx, Δy in product(ciota(0, 56), ciota(0, 56)):
+        if Δx % 8 != 0 and Δy % 8 == 0:
+            yield 248 - Δx, 283 - Δy
+
+def arena_green_spawns():
+    for Δx, Δy in product(ciota(0, 56), ciota(0, 56)):
+        if Δx % 8 != 0 and Δy % 8 == 0:
+            yield 263 + Δx, 228 + Δy
+
+def arena_map_geometry():
+    for Δx, Δy, Δz in product(ciota(0, 56), ciota(0, 56), ciota(0, 62)):
+        onYZ, onXZ, onXY = Δx % 8 == 0, Δy % 8 == 0, Δz % 8 == 0
+
+        if Δz == 56 or (onYZ and onXZ) or (onYZ and onXY) or (onXZ and onXY):
+            yield 248 - Δx, 283 - Δy, Δz
+            yield 263 + Δx, 228 + Δy, Δz
+
+extensions = CTF(
+    water_damage           = 100,
+    arena_give_builder_kit = True,
+    arena_blue_spawns      = [(x, y, 56) for x, y in arena_blue_spawns()],
+    arena_blue_base        = (232, 256, 56),
+    arena_blue_flag        = (208, 256, 8),
+    arena_green_spawns     = [(x, y, 56) for x, y in arena_green_spawns()],
+    arena_green_base       = (279, 256, 56),
+    arena_green_flag       = (303, 256, 8)
+)
+
+mask = None
+
+def is_indestructable(connection, x, y, z):
+    return mask.get_solid(x, y, z)
+
+def gen_script(basename, seed):
+    global fog
+
+    rgen = Random(seed)
+
+    hue = rgen.uniform(0.0, 1.0)
+
+    fog      = HSV3fAsRGB3i(hue, 0.50, 0.50)
+    water    = HSV3fAsRGB3i(hue, 0.95, 0.45)
+    concrete = HSV3fAsRGB3i(hue, 0.18, 0.50)
+
+    vxl = VXLData()
+
+    for x, y in product(range(512), range(512)):
+        vxl.set_point(x, y, 63, water)
+
+    for x, y, z in arena_map_geometry():
+        vxl.set_point(x, y, z, concrete)
+
+    global mask
+    mask = vxl.copy()
+
+    return vxl
+
+def on_line_build(player, points):
+    x1, y1, z1 = points[0]
+    x2, y2, z2 = points[-1]
+
+    doBlockLinePacket(player, 511 - x1, 511 - y1, z1, 511 - x2, 511 - y2, z2)
+
+def on_block_build(player, x, y, z):
+    doBlockBuildPacket(player, 511 - x, 511 - y, z)
+
+def on_block_removed(player, x, y, z):
+    doBlockRemovePacket(player, 511 - x, 511 - y, z)
+
+def on_grenade_thrown(player, go):
+    x,  y,  z  = go.position.get()
+    vx, vy, vz = go.velocity.get()
+
+    doGrenadePacket(player, go.fuse, 512 - x, 512 - y, z, -vx, -vy, vz)
+
+on_entity_updated = respawn_on_flag_sunken
